@@ -13,7 +13,16 @@
  *    get autocomplete and TS errors for typos.
  */
 import { config as loadEnv } from "dotenv";
-loadEnv();
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Load .env from BOTH the current working directory (when started from the
+// workspace root via `npm run dev`) and the monorepo root (when started from
+// inside apps/api). First match wins per-variable, which is dotenv's default.
+const here = path.dirname(fileURLToPath(import.meta.url));
+loadEnv(); // process.cwd()
+loadEnv({ path: path.resolve(here, "../../../../.env") }); // monorepo root from dist/
+loadEnv({ path: path.resolve(here, "../../../.env") });    // monorepo root from src/
 
 function required(name: string, fallback?: string): string {
   const v = process.env[name] ?? fallback;

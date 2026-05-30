@@ -95,26 +95,32 @@ export function detectAnomalies(events: ParsedEvent[]): Anomaly[] {
 
   for (const [ip, perMinute] of byIp) {
     const counts = Array.from(perMinute.values()).map((a) => a.length);
-    if (counts.length < 3) continue; // not enough history to judge
     const mu = mean(counts);
     const sd = stdev(counts);
-    if (sd === 0) continue;
     for (const [minute, idxs] of perMinute) {
       const c = idxs.length;
-      const z = (c - mu) / sd;
-      if (z > 3 && c >= 20) {
-        // Attach to the first event in the burst so the UI can scroll to it.
-        anomalies.push({
-          eventIndex: idxs[0],
-          rule: "burst_from_ip",
-          reason: `IP ${ip} made ${c} requests in 1 minute (baseline ${mu.toFixed(
-            1,
-          )}/min, z=${z.toFixed(1)}).`,
-          confidence: Math.min(1, 0.6 + (z - 3) * 0.1),
-          severity: z > 6 ? "high" : "medium",
-          metadata: { ip, minute, count: c, baseline: mu, z },
-        });
-      }
+      // Two ways to fire R1:
+      //   (a) Z-score outlier within this IP's own per-minute distribution
+      //       (only meaningful when we have >= 3 buckets to baseline against).
+      //   (b) Absolute threshold — a single IP making >= 50 requests in one
+      //       minute is suspicious regardless of baseline (catches scanners
+      //       that have no "normal" activity in the file at all).
+      const zOutlier = counts.length >= 3 && sd > 0 && (c - mu) / sd > 3 && c >= 20;
+      const absoluteHigh = c >= 50;
+      if (!zOutlier && !absoluteHigh) continue;
+      const z = sd > 0 ? (c - mu) / sd : 0;
+      anomalies.push({
+        eventIndex: idxs[0],
+        rule: "burst_from_ip",
+        reason: zOutlier
+          ? `IP ${ip} made ${c} requests in 1 minute (baseline ${mu.toFixed(
+              1,
+            )}/min, z=${z.toFixed(1)}).`
+          : `IP ${ip} made ${c} requests in 1 minute — well above any normal browsing rate.`,
+        confidence: zOutlier ? Math.min(1, 0.6 + (z - 3) * 0.1) : Math.min(1, 0.5 + c / 200),
+        severity: c >= 100 || z > 6 ? "high" : "medium",
+        metadata: { ip, minute, count: c, baseline: mu, z, trigger: zOutlier ? "zscore" : "absolute" },
+      });
     }
   }
 
