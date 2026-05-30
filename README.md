@@ -4,7 +4,7 @@
 
 Author: **Matthew Faber**
 Stack: Next.js 15 + Express + PostgreSQL + Azure Container Apps + Azure AI Foundry
-Repo: https://github.com/MTFUCF/loginsight *(repo name preserved for history; product is TraceIQ)*
+Repo: https://github.com/MTFUCF/traceiq
 Live demo: *(filled in after first deploy — `https://traceiq.matthew-faber.com`)*
 
 ---
