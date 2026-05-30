@@ -54,6 +54,7 @@ function Inner() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [showOnlyAnomalies, setShowOnlyAnomalies] = useState(false);
+  const [severityFilter, setSeverityFilter] = useState<Set<string>>(new Set(["high", "medium", "low"]));
 
   useEffect(() => {
     Promise.all([
@@ -68,6 +69,17 @@ function Inner() {
     () => (showOnlyAnomalies ? events.filter((e) => e.is_anomaly) : events),
     [events, showOnlyAnomalies],
   );
+
+  const filteredAnomalies = useMemo(
+    () => anomalies.filter((a) => severityFilter.has(a.severity)),
+    [anomalies, severityFilter],
+  );
+
+  function toggleSev(s: string) {
+    const next = new Set(severityFilter);
+    if (next.has(s)) next.delete(s); else next.add(s);
+    setSeverityFilter(next);
+  }
 
   if (!summary) return <p className="text-slate-400">Loading analysis…</p>;
   const s = summary.stats;
@@ -148,14 +160,34 @@ function Inner() {
       </div>
 
       <section className="panel">
-        <h2 className="text-lg font-semibold mb-3">
-          Anomalies <span className="text-slate-400 text-sm">({anomalies.length})</span>
-        </h2>
-        {anomalies.length === 0 ? (
-          <p className="text-slate-400 text-sm">No anomalies detected. 🎉</p>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h2 className="text-lg font-semibold">
+            Anomalies <span className="text-slate-400 text-sm">({filteredAnomalies.length} / {anomalies.length})</span>
+          </h2>
+          <div className="flex gap-1.5">
+            <span className="text-xs text-slate-400 self-center mr-1">Severity:</span>
+            {(["high", "medium", "low"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => toggleSev(s)}
+                className={`text-xs px-2 py-1 rounded border transition ${
+                  severityFilter.has(s)
+                    ? "border-accent bg-accent/15 text-accent"
+                    : "border-slate-700 text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+        {filteredAnomalies.length === 0 ? (
+          <p className="text-slate-400 text-sm">
+            {anomalies.length === 0 ? "No anomalies detected. 🎉" : "No anomalies match the current filters."}
+          </p>
         ) : (
           <ul className="space-y-3">
-            {anomalies.map((a) => (
+            {filteredAnomalies.map((a) => (
               <li key={a.id} className="border border-slate-700 rounded p-3 bg-slate-900/60">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={sevBadge(a.severity)}>{a.severity}</span>

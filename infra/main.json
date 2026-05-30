@@ -1,0 +1,617 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.43.8.12551",
+      "templateHash": "4930782469418130915"
+    }
+  },
+  "parameters": {
+    "appName": {
+      "type": "string",
+      "defaultValue": "traceiq",
+      "metadata": {
+        "description": "Short app name; resource names are derived from this."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus2",
+      "metadata": {
+        "description": "Azure region for all resources."
+      }
+    },
+    "environmentName": {
+      "type": "string",
+      "defaultValue": "dev",
+      "metadata": {
+        "description": "Environment tag (e.g. dev, prod)."
+      }
+    },
+    "dbAdminLogin": {
+      "type": "string",
+      "defaultValue": "traceiqadmin",
+      "metadata": {
+        "description": "PostgreSQL admin login name."
+      }
+    },
+    "dbAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "PostgreSQL admin password. Generate a strong random value."
+      }
+    },
+    "jwtSecret": {
+      "type": "securestring",
+      "metadata": {
+        "description": "JWT signing secret. 32+ random characters."
+      }
+    },
+    "seedAdminEmail": {
+      "type": "string",
+      "defaultValue": "admin@traceiq.local",
+      "metadata": {
+        "description": "Email for the initial seeded admin user."
+      }
+    },
+    "seedAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Initial seeded admin password."
+      }
+    },
+    "foundryEndpoint": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Azure AI Foundry inference endpoint (from your Foundry project)."
+      }
+    },
+    "foundryApiKey": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Azure AI Foundry API key."
+      }
+    },
+    "foundryDeployment": {
+      "type": "string",
+      "defaultValue": "gpt-4o-mini",
+      "metadata": {
+        "description": "Deployment name of the model inside your Foundry project."
+      }
+    }
+  },
+  "variables": {
+    "suffix": "[uniqueString(subscription().id, parameters('appName'), parameters('environmentName'))]",
+    "rgName": "[format('rg-{0}-{1}', parameters('appName'), parameters('environmentName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2023-07-01",
+      "name": "[variables('rgName')]",
+      "location": "[parameters('location')]",
+      "tags": {
+        "app": "[parameters('appName')]",
+        "env": "[parameters('environmentName')]",
+        "owner": "Matthew Faber"
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "core",
+      "resourceGroup": "[variables('rgName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "appName": {
+            "value": "[parameters('appName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "suffix": {
+            "value": "[variables('suffix')]"
+          },
+          "dbAdminLogin": {
+            "value": "[parameters('dbAdminLogin')]"
+          },
+          "dbAdminPassword": {
+            "value": "[parameters('dbAdminPassword')]"
+          },
+          "jwtSecret": {
+            "value": "[parameters('jwtSecret')]"
+          },
+          "seedAdminEmail": {
+            "value": "[parameters('seedAdminEmail')]"
+          },
+          "seedAdminPassword": {
+            "value": "[parameters('seedAdminPassword')]"
+          },
+          "foundryEndpoint": {
+            "value": "[parameters('foundryEndpoint')]"
+          },
+          "foundryApiKey": {
+            "value": "[parameters('foundryApiKey')]"
+          },
+          "foundryDeployment": {
+            "value": "[parameters('foundryDeployment')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.43.8.12551",
+              "templateHash": "12031021097212011598"
+            }
+          },
+          "parameters": {
+            "appName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "suffix": {
+              "type": "string"
+            },
+            "dbAdminLogin": {
+              "type": "string"
+            },
+            "dbAdminPassword": {
+              "type": "securestring"
+            },
+            "jwtSecret": {
+              "type": "securestring"
+            },
+            "seedAdminEmail": {
+              "type": "string"
+            },
+            "seedAdminPassword": {
+              "type": "securestring"
+            },
+            "foundryEndpoint": {
+              "type": "string"
+            },
+            "foundryApiKey": {
+              "type": "securestring"
+            },
+            "foundryDeployment": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "tags": {
+              "app": "[parameters('appName')]",
+              "owner": "Matthew Faber"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[format('id-{0}-{1}', parameters('appName'), parameters('suffix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]"
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[format('log-{0}-{1}', parameters('appName'), parameters('suffix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              }
+            },
+            {
+              "type": "Microsoft.ContainerRegistry/registries",
+              "apiVersion": "2023-11-01-preview",
+              "name": "[format('acr{0}{1}', parameters('appName'), parameters('suffix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "sku": {
+                "name": "Basic"
+              },
+              "properties": {
+                "adminUserEnabled": false
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix')))]",
+              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix'))), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', parameters('appName'), parameters('suffix'))), 'AcrPull')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', parameters('appName'), parameters('suffix'))), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix')))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', parameters('appName'), parameters('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-05-01",
+              "name": "[format('st{0}{1}', parameters('appName'), parameters('suffix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "allowBlobPublicAccess": false,
+                "minimumTlsVersion": "TLS1_2"
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('st{0}{1}', parameters('appName'), parameters('suffix')), 'default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', format('st{0}{1}', parameters('appName'), parameters('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', format('st{0}{1}', parameters('appName'), parameters('suffix')), 'default', 'logs')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', format('st{0}{1}', parameters('appName'), parameters('suffix')), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+              "apiVersion": "2024-08-01",
+              "name": "[format('pg-{0}-{1}', parameters('appName'), parameters('suffix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "sku": {
+                "name": "Standard_B1ms",
+                "tier": "Burstable"
+              },
+              "properties": {
+                "version": "16",
+                "administratorLogin": "[parameters('dbAdminLogin')]",
+                "administratorLoginPassword": "[parameters('dbAdminPassword')]",
+                "storage": {
+                  "storageSizeGB": 32
+                },
+                "backup": {
+                  "backupRetentionDays": 7,
+                  "geoRedundantBackup": "Disabled"
+                },
+                "highAvailability": {
+                  "mode": "Disabled"
+                },
+                "network": {
+                  "publicNetworkAccess": "Enabled"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+              "apiVersion": "2024-08-01",
+              "name": "[format('{0}/{1}', format('pg-{0}-{1}', parameters('appName'), parameters('suffix')), 'AllowAzureServices')]",
+              "properties": {
+                "startIpAddress": "0.0.0.0",
+                "endIpAddress": "0.0.0.0"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('pg-{0}-{1}', parameters('appName'), parameters('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+              "apiVersion": "2024-08-01",
+              "name": "[format('{0}/{1}', format('pg-{0}-{1}', parameters('appName'), parameters('suffix')), 'traceiq')]",
+              "properties": {
+                "charset": "UTF8",
+                "collation": "en_US.utf8"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('pg-{0}-{1}', parameters('appName'), parameters('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.App/managedEnvironments",
+              "apiVersion": "2024-03-01",
+              "name": "[format('cae-{0}-{1}', parameters('appName'), parameters('suffix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "properties": {
+                "appLogsConfiguration": {
+                  "destination": "log-analytics",
+                  "logAnalyticsConfiguration": {
+                    "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-{1}', parameters('appName'), parameters('suffix'))), '2023-09-01').customerId]",
+                    "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-{1}', parameters('appName'), parameters('suffix'))), '2023-09-01').primarySharedKey]"
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-{1}', parameters('appName'), parameters('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2024-03-01",
+              "name": "[format('ca-{0}-api-{1}', parameters('appName'), parameters('suffix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[union(variables('tags'), createObject('azd-service-name', 'api'))]",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', parameters('appName'), parameters('suffix'))))]": {}
+                }
+              },
+              "properties": {
+                "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('appName'), parameters('suffix')))]",
+                "configuration": {
+                  "activeRevisionsMode": "Single",
+                  "ingress": {
+                    "external": true,
+                    "targetPort": 4000,
+                    "transport": "auto",
+                    "corsPolicy": {
+                      "allowedOrigins": [
+                        "*"
+                      ],
+                      "allowedMethods": [
+                        "GET",
+                        "POST",
+                        "DELETE",
+                        "OPTIONS"
+                      ],
+                      "allowedHeaders": [
+                        "*"
+                      ]
+                    }
+                  },
+                  "registries": [
+                    {
+                      "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix'))), '2023-11-01-preview').loginServer]",
+                      "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', parameters('appName'), parameters('suffix')))]"
+                    }
+                  ],
+                  "secrets": [
+                    {
+                      "name": "db-url",
+                      "value": "[format('postgresql://{0}:{1}@{2}:5432/traceiq?sslmode=require', parameters('dbAdminLogin'), parameters('dbAdminPassword'), reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('pg-{0}-{1}', parameters('appName'), parameters('suffix'))), '2024-08-01').fullyQualifiedDomainName)]"
+                    },
+                    {
+                      "name": "jwt-secret",
+                      "value": "[parameters('jwtSecret')]"
+                    },
+                    {
+                      "name": "storage-conn",
+                      "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', format('st{0}{1}', parameters('appName'), parameters('suffix')), listKeys(resourceId('Microsoft.Storage/storageAccounts', format('st{0}{1}', parameters('appName'), parameters('suffix'))), '2023-05-01').keys[0].value, environment().suffixes.storage)]"
+                    },
+                    {
+                      "name": "seed-admin-password",
+                      "value": "[parameters('seedAdminPassword')]"
+                    },
+                    {
+                      "name": "foundry-key",
+                      "value": "[if(empty(parameters('foundryApiKey')), 'unset', parameters('foundryApiKey'))]"
+                    }
+                  ]
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "api",
+                      "image": "mcr.microsoft.com/k8se/quickstart:latest",
+                      "resources": {
+                        "cpu": "[json('0.5')]",
+                        "memory": "1Gi"
+                      },
+                      "env": [
+                        {
+                          "name": "NODE_ENV",
+                          "value": "production"
+                        },
+                        {
+                          "name": "PORT",
+                          "value": "4000"
+                        },
+                        {
+                          "name": "DATABASE_URL",
+                          "secretRef": "db-url"
+                        },
+                        {
+                          "name": "JWT_SECRET",
+                          "secretRef": "jwt-secret"
+                        },
+                        {
+                          "name": "AZURE_STORAGE_CONNECTION_STRING",
+                          "secretRef": "storage-conn"
+                        },
+                        {
+                          "name": "AZURE_STORAGE_CONTAINER",
+                          "value": "logs"
+                        },
+                        {
+                          "name": "SEED_ADMIN_EMAIL",
+                          "value": "[parameters('seedAdminEmail')]"
+                        },
+                        {
+                          "name": "SEED_ADMIN_PASSWORD",
+                          "secretRef": "seed-admin-password"
+                        },
+                        {
+                          "name": "AZURE_AI_FOUNDRY_ENDPOINT",
+                          "value": "[parameters('foundryEndpoint')]"
+                        },
+                        {
+                          "name": "AZURE_AI_FOUNDRY_API_KEY",
+                          "secretRef": "foundry-key"
+                        },
+                        {
+                          "name": "AZURE_AI_FOUNDRY_DEPLOYMENT",
+                          "value": "[parameters('foundryDeployment')]"
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 0,
+                    "maxReplicas": 2
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix')))]",
+                "[extensionResourceId(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix'))), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix'))), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', parameters('appName'), parameters('suffix'))), 'AcrPull'))]",
+                "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('appName'), parameters('suffix')))]",
+                "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('pg-{0}-{1}', parameters('appName'), parameters('suffix')))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', format('st{0}{1}', parameters('appName'), parameters('suffix')))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', parameters('appName'), parameters('suffix')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2024-03-01",
+              "name": "[format('ca-{0}-web-{1}', parameters('appName'), parameters('suffix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[union(variables('tags'), createObject('azd-service-name', 'web'))]",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', parameters('appName'), parameters('suffix'))))]": {}
+                }
+              },
+              "properties": {
+                "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('appName'), parameters('suffix')))]",
+                "configuration": {
+                  "activeRevisionsMode": "Single",
+                  "ingress": {
+                    "external": true,
+                    "targetPort": 3000,
+                    "transport": "auto"
+                  },
+                  "registries": [
+                    {
+                      "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix'))), '2023-11-01-preview').loginServer]",
+                      "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', parameters('appName'), parameters('suffix')))]"
+                    }
+                  ]
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "web",
+                      "image": "mcr.microsoft.com/k8se/quickstart:latest",
+                      "resources": {
+                        "cpu": "[json('0.25')]",
+                        "memory": "0.5Gi"
+                      },
+                      "env": [
+                        {
+                          "name": "NODE_ENV",
+                          "value": "production"
+                        },
+                        {
+                          "name": "PORT",
+                          "value": "3000"
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 0,
+                    "maxReplicas": 2
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix')))]",
+                "[extensionResourceId(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix'))), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix'))), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', parameters('appName'), parameters('suffix'))), 'AcrPull'))]",
+                "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('appName'), parameters('suffix')))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-{0}-{1}', parameters('appName'), parameters('suffix')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "acrLoginServer": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', format('acr{0}{1}', parameters('appName'), parameters('suffix'))), '2023-11-01-preview').loginServer]"
+            },
+            "acrName": {
+              "type": "string",
+              "value": "[format('acr{0}{1}', parameters('appName'), parameters('suffix'))]"
+            },
+            "apiName": {
+              "type": "string",
+              "value": "[format('ca-{0}-api-{1}', parameters('appName'), parameters('suffix'))]"
+            },
+            "webName": {
+              "type": "string",
+              "value": "[format('ca-{0}-web-{1}', parameters('appName'), parameters('suffix'))]"
+            },
+            "apiFqdn": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', format('ca-{0}-api-{1}', parameters('appName'), parameters('suffix'))), '2024-03-01').configuration.ingress.fqdn)]"
+            },
+            "webFqdn": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', format('ca-{0}-web-{1}', parameters('appName'), parameters('suffix'))), '2024-03-01').configuration.ingress.fqdn)]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('rgName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "AZURE_RESOURCE_GROUP": {
+      "type": "string",
+      "value": "[variables('rgName')]"
+    },
+    "AZURE_LOCATION": {
+      "type": "string",
+      "value": "[parameters('location')]"
+    },
+    "AZURE_CONTAINER_REGISTRY_ENDPOINT": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('rgName')), 'Microsoft.Resources/deployments', 'core'), '2025-04-01').outputs.acrLoginServer.value]"
+    },
+    "AZURE_CONTAINER_REGISTRY_NAME": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('rgName')), 'Microsoft.Resources/deployments', 'core'), '2025-04-01').outputs.acrName.value]"
+    },
+    "SERVICE_API_NAME": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('rgName')), 'Microsoft.Resources/deployments', 'core'), '2025-04-01').outputs.apiName.value]"
+    },
+    "SERVICE_WEB_NAME": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('rgName')), 'Microsoft.Resources/deployments', 'core'), '2025-04-01').outputs.webName.value]"
+    },
+    "SERVICE_API_URI": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('rgName')), 'Microsoft.Resources/deployments', 'core'), '2025-04-01').outputs.apiFqdn.value]"
+    },
+    "SERVICE_WEB_URI": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('rgName')), 'Microsoft.Resources/deployments', 'core'), '2025-04-01').outputs.webFqdn.value]"
+    }
+  }
+}

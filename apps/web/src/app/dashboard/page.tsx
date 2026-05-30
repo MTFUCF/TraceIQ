@@ -39,6 +39,7 @@ function Inner() {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [logType, setLogType] = useState("auto");
+  const [filterType, setFilterType] = useState("all");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -75,6 +76,9 @@ function Inner() {
   }
 
   const doneCount = uploads.filter((u) => u.status === "done").length;
+  const visibleUploads = filterType === "all"
+    ? uploads
+    : uploads.filter((u) => u.log_type === filterType);
 
   return (
     <div className="space-y-6">
@@ -112,16 +116,38 @@ function Inner() {
       </section>
 
       <section className="panel">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
           <h2 className="text-lg font-semibold">Previous uploads</h2>
-          <button
-            className="btn"
-            disabled={doneCount < 2}
-            title={doneCount < 2 ? "Upload at least 2 logs to correlate" : "Find cross-log attack chains"}
-            onClick={() => router.push("/correlation")}
-          >
-            🔗 Correlate {doneCount >= 2 ? `(${doneCount} logs)` : ""}
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">Filter:</span>
+            {[
+              { v: "all",      label: "All" },
+              { v: "proxy",    label: "🌐 Proxy" },
+              { v: "email",    label: "📧 Email" },
+              { v: "endpoint", label: "🖥 Endpoint" },
+              { v: "cloud",    label: "☁ Cloud" },
+            ].map((f) => (
+              <button
+                key={f.v}
+                onClick={() => setFilterType(f.v)}
+                className={`text-xs px-2 py-1 rounded border transition ${
+                  filterType === f.v
+                    ? "border-accent bg-accent/15 text-accent"
+                    : "border-slate-700 text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+            <button
+              className="btn ml-3"
+              disabled={doneCount < 2}
+              title={doneCount < 2 ? "Upload at least 2 logs to correlate" : "Find cross-log attack chains"}
+              onClick={() => router.push("/correlation")}
+            >
+              🔗 Correlate {doneCount >= 2 ? `(${doneCount} logs)` : ""}
+            </button>
+          </div>
         </div>
         {uploads.length === 0 ? (
           <p className="text-slate-400 text-sm">
@@ -142,7 +168,7 @@ function Inner() {
               </tr>
             </thead>
             <tbody>
-              {uploads.map((u) => (
+              {visibleUploads.map((u) => (
                 <tr key={u.id} className="border-t border-slate-800">
                   <td className="py-2">
                     <Link className="text-accent hover:underline" href={`/analysis/${u.id}`}>{u.filename}</Link>

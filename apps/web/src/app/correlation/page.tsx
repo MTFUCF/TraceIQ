@@ -1,21 +1,28 @@
 /**
- * Correlation view — cross-upload attack chains.
+ * Correlation view — cross-upload attack chains with filtering + path graph.
  *
  * Author: Matthew Faber
  *
- * Calls POST /correlate, then renders each chain as:
+ * Calls POST /correlate, then renders each chain with:
  *   - Header: time range, source types covered, anomaly count
- *   - Entities pivoted on (emails, users, IPs, hashes)
+ *   - Entities pivoted on
  *   - MITRE ATT&CK techniques covered (clickable badges)
- *   - AI-written narrative (Foundry) — the "story"
- *   - Timeline of events (anomalies in red), each labeled with its source type
+ *   - AI-written narrative (Foundry)
+ *   - **Attack path graph** (SVG swimlane visualisation — new)
+ *   - Filterable event timeline
+ *
+ * Filters apply at two levels:
+ *   - Chain-level: only show chains that contain at least one matching event
+ *   - Event-level: hide events within a chain that don't match
+ * Both filter on source type, severity, anomaly-only.
  */
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { AuthGate } from "@/components/AuthGate";
 import { MitreBadge } from "@/components/MitreBadge";
+import { AttackPathGraph } from "@/components/AttackPathGraph";
 
 type Mitre = { tacticId: string; tacticName: string; techniqueId: string; techniqueName: string };
 type ChainEvent = {
@@ -30,11 +37,11 @@ type Chain = {
   events: ChainEvent[]; mitre: Mitre[]; aiNarrative: string | null;
 };
 
+const SOURCE_TYPES = ["proxy", "email", "endpoint", "cloud"] as const;
+const SEVERITIES = ["high", "medium", "low"] as const;
+
 function sourceBadge(t: string) {
-  const map: Record<string, string> = {
-    proxy: "🌐 proxy", email: "📧 email", endpoint: "🖥 endpoint", cloud: "☁ cloud",
-  };
-  return map[t] ?? t;
+  return ({ proxy: "🌐 proxy", email: "📧 email", endpoint: "🖥 endpoint", cloud: "☁ cloud" } as Record<string, string>)[t] ?? t;
 }
 function entityBadge(e: Entity) {
   const icon = ({ email: "✉", user: "👤", ip: "🖧", host: "🏢", sha256: "#️⃣" } as Record<string, string>)[e.type] ?? "•";
@@ -56,6 +63,11 @@ function Inner() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
 
+  // Filter state — all start permissive.
+  const [enabledTypes, setEnabledTypes] = useState<Set<string>>(new Set(SOURCE_TYPES));
+  const [enabledSeverities, setEnabledSeverities] = useState<Set<string>>(new Set([...SEVERITIES, "none"]));
+  const [anomaliesOnly, setAnomaliesOnly] = useState(false);
+
   async function run() {
     setBusy(true); setErr(null);
     try {
@@ -66,6 +78,39 @@ function Inner() {
     } finally { setBusy(false); }
   }
   useEffect(() => { run(); }, []);
+
+  function toggle<T extends string>(set: Set<T>, setter: (s: Set<T>) => void, v: T) {
+    const next = new Set(set);
+    if (next.has(v)) next.delete(v); else next.add(v);
+    setter(next);
+  }
+
+  function eventMatches(e: ChainEvent): boolean {
+    if (!enabledTypes.has(e.sourceType)) return false;
+    if (anomaliesOnly && !e.isAnomaly) return false;
+    const sev = e.severity ?? "none";
+    if (!enabledSeverities.has(sev)) return false;
+    return true;
+  }
+
+  // Apply filters to chains. A chain stays if it has >=1 matching event,
+  // and we filter its event list down to matches.
+  const filteredChains = useMemo(() => {
+    if (!chains) return null;
+    return chains
+      .map((c) => ({
+        ...c,
+        events: c.events.filter(eventMatches),
+      }))
+      .filter((c) => c.events.length > 0);
+  }, [chains, enabledTypes, enabledSeverities, anomaliesOnly]);
+
+  const filterStats = useMemo(() => {
+    if (!chains || !filteredChains) return null;
+    const totalEvents = chains.reduce((s, c) => s + c.events.length, 0);
+    const shownEvents = filteredChains.reduce((s, c) => s + c.events.length, 0);
+    return { chains: chains.length, shownChains: filteredChains.length, totalEvents, shownEvents };
+  }, [chains, filteredChains]);
 
   return (
     <div className="space-y-6">
@@ -84,6 +129,64 @@ function Inner() {
           </button>
         </div>
       </div>
+
+      {/* ---------- Filter bar ---------- */}
+      {chains && chains.length > 0 && (
+        <section className="panel">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Source type</div>
+              <div className="flex gap-1.5">
+                {SOURCE_TYPES.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => toggle(enabledTypes, setEnabledTypes, t)}
+                    className={`text-xs px-2 py-1 rounded border transition ${
+                      enabledTypes.has(t)
+                        ? "border-accent bg-accent/15 text-accent"
+                        : "border-slate-700 text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    {sourceBadge(t)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Severity</div>
+              <div className="flex gap-1.5">
+                {(["high", "medium", "low", "none"] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => toggle(enabledSeverities, setEnabledSeverities, s)}
+                    className={`text-xs px-2 py-1 rounded border transition ${
+                      enabledSeverities.has(s)
+                        ? "border-accent bg-accent/15 text-accent"
+                        : "border-slate-700 text-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    {s === "none" ? "context" : s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="text-sm text-slate-300 inline-flex items-center gap-2 self-end pb-1">
+              <input
+                type="checkbox"
+                checked={anomaliesOnly}
+                onChange={(e) => setAnomaliesOnly(e.target.checked)}
+              />
+              Anomalies only
+            </label>
+            {filterStats && (
+              <div className="ml-auto text-xs text-slate-500 self-end pb-1">
+                Showing {filterStats.shownChains}/{filterStats.chains} chains ·{" "}
+                {filterStats.shownEvents}/{filterStats.totalEvents} events
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {err && <p className="text-red-400 text-sm">{err}</p>}
       {busy && !chains && (
@@ -107,12 +210,17 @@ function Inner() {
           </p>
         </div>
       )}
+      {chains && chains.length > 0 && filteredChains && filteredChains.length === 0 && (
+        <p className="text-slate-400 text-sm italic">
+          No chains match the current filters. Loosen them above.
+        </p>
+      )}
 
-      {chains && chains.map((c) => (
+      {filteredChains && filteredChains.map((c) => (
         <article key={c.id} className="panel space-y-3">
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-lg font-semibold">Attack chain · {c.id}</h2>
-            <span className="badge-high">{c.anomalyCount} anomalies</span>
+            <span className="badge-high">{c.events.filter((e) => e.isAnomaly).length} anomalies</span>
             {c.sourceTypes.map((t) => (
               <span key={t} className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-200">
                 {sourceBadge(t)}
@@ -145,6 +253,12 @@ function Inner() {
               <p className="text-sm text-slate-100 whitespace-pre-wrap">{c.aiNarrative}</p>
             </div>
           )}
+
+          {/* ---------- Attack path graph ---------- */}
+          <div>
+            <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">Attack path</div>
+            <AttackPathGraph events={c.events} />
+          </div>
 
           <div>
             <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">Timeline</div>
