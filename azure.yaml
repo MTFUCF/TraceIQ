@@ -11,9 +11,9 @@
 #   azd up      provisions infra + builds + deploys both services
 #   azd deploy  rebuilds + deploys without re-provisioning
 #   azd down    deletes the resource group
-name: loginsight
+name: traceiq
 metadata:
-  template: loginsight@0.1.0
+  template: traceiq@0.1.0
 infra:
   provider: bicep
   path: infra

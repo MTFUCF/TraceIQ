@@ -10,7 +10,7 @@ export function SignOutButton() {
       className="hover:text-slate-100"
       onClick={() => {
         if (typeof window !== "undefined") {
-          localStorage.removeItem("loginsight_token");
+          localStorage.removeItem("traceiq_token");
           window.location.href = "/login";
         }
       }}

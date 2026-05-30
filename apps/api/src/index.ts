@@ -1,5 +1,5 @@
 /**
- * loginsight API entrypoint.
+ * traceiq API entrypoint.
  *
  * Author: Matthew Faber
  *
@@ -16,6 +16,7 @@ import cors from "cors";
 import { config } from "./config.js";
 import { authRouter } from "./routes/auth.js";
 import { uploadsRouter } from "./routes/uploads.js";
+import { correlateRouter } from "./routes/correlate.js";
 import { query } from "./db/client.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -30,6 +31,7 @@ app.get("/health", (_req, res) => res.json({ ok: true, env: config.env }));
 
 app.use("/auth", authRouter);
 app.use("/uploads", uploadsRouter);
+app.use("/correlate", correlateRouter);
 
 // Centralised error handler so multer/zod errors don't leak stack traces.
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

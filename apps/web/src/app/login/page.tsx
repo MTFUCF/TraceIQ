@@ -13,7 +13,7 @@ import { api, ApiError } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@loginsight.local");
+  const [email, setEmail] = useState("admin@traceiq.local");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,7 +27,7 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      localStorage.setItem("loginsight_token", r.token);
+      localStorage.setItem("traceiq_token", r.token);
       router.push("/dashboard");
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "login failed");
@@ -39,7 +39,7 @@ export default function LoginPage() {
   return (
     <div className="max-w-sm mx-auto mt-16 panel">
       <h1 className="text-xl font-semibold mb-1">Sign in</h1>
-      <p className="text-slate-400 text-sm mb-4">Use your loginsight credentials.</p>
+      <p className="text-slate-400 text-sm mb-4">Use your traceiq credentials.</p>
       <form onSubmit={submit} className="space-y-3">
         <input
           className="input"
@@ -63,7 +63,7 @@ export default function LoginPage() {
         </button>
       </form>
       <p className="text-xs text-slate-500 mt-4">
-        Default admin (set via env): <code>admin@loginsight.local</code>
+        Default admin (set via env): <code>admin@traceiq.local</code>
       </p>
     </div>
   );

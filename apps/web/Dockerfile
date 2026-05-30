@@ -1,4 +1,4 @@
-# Build for the loginsight Next.js frontend.
+# Build for the traceiq Next.js frontend.
 # Author: Matthew Faber
 #
 # We use Next.js's `output: "standalone"` mode (configured in next.config.js).
@@ -19,11 +19,11 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 COPY package.json package-lock.json* ./
 COPY apps/web/package.json apps/web/
-RUN npm install --workspace=@loginsight/web --include-workspace-root
+RUN npm install --workspace=@traceiq/web --include-workspace-root
 
 COPY tsconfig.base.json ./
 COPY apps/web ./apps/web
-RUN npm run build --workspace=@loginsight/web
+RUN npm run build --workspace=@traceiq/web
 
 # ---------- Runner ----------
 FROM node:22-alpine AS runner

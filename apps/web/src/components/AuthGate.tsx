@@ -13,7 +13,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    const token = localStorage.getItem("loginsight_token");
+    const token = localStorage.getItem("traceiq_token");
     if (!token) router.replace("/login");
     else setReady(true);
   }, [router]);

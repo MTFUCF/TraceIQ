@@ -1,5 +1,5 @@
 {
-  "name": "loginsight",
+  "name": "traceiq",
   "version": "0.1.0",
   "private": true,
   "description": "SOC log analysis platform — upload, parse, and detect anomalies in web proxy logs",
@@ -10,9 +10,9 @@
   ],
   "scripts": {
     "dev": "npm-run-all --parallel dev:api dev:web",
-    "dev:api": "npm run dev -w @loginsight/api",
-    "dev:web": "npm run dev -w @loginsight/web",
-    "build": "npm run build -w @loginsight/api && npm run build -w @loginsight/web",
+    "dev:api": "npm run dev -w @traceiq/api",
+    "dev:web": "npm run dev -w @traceiq/web",
+    "build": "npm run build -w @traceiq/api && npm run build -w @traceiq/web",
     "lint": "npm run lint --workspaces --if-present",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down"

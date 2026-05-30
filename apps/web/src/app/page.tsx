@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 export default function Home() {
   const router = useRouter();
   useEffect(() => {
-    const token = typeof window !== "undefined" && localStorage.getItem("loginsight_token");
+    const token = typeof window !== "undefined" && localStorage.getItem("traceiq_token");
     router.replace(token ? "/dashboard" : "/login");
   }, [router]);
   return <p className="text-slate-400">Loading…</p>;

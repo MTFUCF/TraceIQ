@@ -7,7 +7,7 @@
 #   AZURE_TENANT_ID
 #   AZURE_SUBSCRIPTION_ID
 # Required repo variables:
-#   AZURE_ENV_NAME            e.g. loginsight-dev
+#   AZURE_ENV_NAME            e.g. traceiq-dev
 #   AZURE_LOCATION            e.g. eastus2
 # Required azd env values (set once with `azd env set ...` and committed
 # to the env state in Azure, or repeated here as repo secrets):

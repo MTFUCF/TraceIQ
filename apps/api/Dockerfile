@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for the loginsight API.
+# Multi-stage Dockerfile for the traceiq API.
 # Author: Matthew Faber
 #
 # Why multi-stage? Builder installs ALL deps (incl. dev) to compile TS -> JS.
@@ -13,11 +13,11 @@ COPY package.json package-lock.json* ./
 COPY apps/api/package.json apps/api/
 
 # Install the api workspace only (and its hoisted deps at root).
-RUN npm install --workspace=@loginsight/api --include-workspace-root
+RUN npm install --workspace=@traceiq/api --include-workspace-root
 
 COPY tsconfig.base.json ./
 COPY apps/api ./apps/api
-RUN npm run build --workspace=@loginsight/api
+RUN npm run build --workspace=@traceiq/api
 
 # ---------- Runner ----------
 FROM node:22-alpine AS runner
@@ -26,7 +26,7 @@ ENV NODE_ENV=production
 
 COPY package.json package-lock.json* ./
 COPY apps/api/package.json apps/api/
-RUN npm install --workspace=@loginsight/api --omit=dev --include-workspace-root
+RUN npm install --workspace=@traceiq/api --omit=dev --include-workspace-root
 
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 

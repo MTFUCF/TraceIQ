@@ -1,120 +1,47 @@
 /**
- * ZScaler-style web proxy log parser.
+ * Parser dispatcher.
  *
  * Author: Matthew Faber
  *
- * ZScaler customers can pick from many feed formats (key=value, CSV, JSON,
- * tab-delimited). For loginsight we standardise on a JSON-Lines variant —
- * one JSON object per line — because:
- *   1. It's the format ZScaler's NSS recommends for SIEM ingestion.
- *   2. It survives field reordering and missing fields gracefully.
- *   3. It's easy for an analyst to hand-craft a test file.
- *
- * If a line is not valid JSON we tolerate it but still record it as a raw
- * row (status_code/etc. left null). That way one corrupt line doesn't kill
- * an entire upload.
- *
- * Expected fields (all optional except `datetime`):
- *   datetime      ISO 8601 timestamp string
- *   user          username / email
- *   clientip      source IP
- *   action        "Allowed" | "Blocked"
- *   url           full URL requested
- *   host          hostname extracted from URL
- *   urlcategory   ZScaler category (e.g. "Malware", "News")
- *   status        HTTP status code
- *   bytesout      bytes uploaded by client
- *   bytesin       bytes downloaded from origin
- *   useragent     User-Agent string
+ * Each supported log type has its own parser in services/parsers/*.ts. The
+ * dispatcher picks one based on the SourceType the user (or auto-detect)
+ * chose at upload time.
  */
+import type { ParsedEvent, SourceType } from "./events.js";
+import { parseProxyLog } from "./parsers/proxy.js";
+import { parseEmailLog } from "./parsers/email.js";
+import { parseEndpointLog } from "./parsers/endpoint.js";
+import { parseCloudLog } from "./parsers/cloud.js";
 
-export interface ParsedEvent {
-  lineNumber: number;
-  occurredAt: Date | null;
-  userName: string | null;
-  clientIp: string | null;
-  action: string | null;
-  url: string | null;
-  host: string | null;
-  urlCategory: string | null;
-  statusCode: number | null;
-  bytesOut: number | null;
-  bytesIn: number | null;
-  userAgent: string | null;
-  rawLine: string;
-}
+export const SUPPORTED_LOG_TYPES: SourceType[] = ["proxy", "email", "endpoint", "cloud"];
 
-function safeDate(v: unknown): Date | null {
-  if (typeof v !== "string") return null;
-  const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function safeStr(v: unknown): string | null {
-  if (v === null || v === undefined) return null;
-  return String(v);
-}
-
-function safeInt(v: unknown): number | null {
-  if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.trunc(n) : null;
-}
-
-function hostFromUrl(url: string | null): string | null {
-  if (!url) return null;
-  try {
-    return new URL(url).hostname;
-  } catch {
-    // Tolerate non-absolute URLs (e.g. proxied CONNECT lines).
-    return null;
-  }
-}
-
-export function parseLogText(text: string): ParsedEvent[] {
-  const events: ParsedEvent[] = [];
-  const lines = text.split(/\r?\n/);
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line.trim()) continue;
-    let obj: Record<string, unknown> = {};
+export function detectLogType(text: string): SourceType {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim()).slice(0, 20);
+  let email = 0, endpoint = 0, cloud = 0, proxy = 0;
+  for (const line of lines) {
     try {
-      obj = JSON.parse(line);
-    } catch {
-      // Keep the raw line so the UI can still surface it, but null out fields.
-      events.push({
-        lineNumber: i + 1,
-        occurredAt: null,
-        userName: null,
-        clientIp: null,
-        action: null,
-        url: null,
-        host: null,
-        urlCategory: null,
-        statusCode: null,
-        bytesOut: null,
-        bytesIn: null,
-        userAgent: null,
-        rawLine: line,
-      });
-      continue;
-    }
-    const url = safeStr(obj.url);
-    events.push({
-      lineNumber: i + 1,
-      occurredAt: safeDate(obj.datetime),
-      userName: safeStr(obj.user),
-      clientIp: safeStr(obj.clientip),
-      action: safeStr(obj.action),
-      url,
-      host: safeStr(obj.host) ?? hostFromUrl(url),
-      urlCategory: safeStr(obj.urlcategory),
-      statusCode: safeInt(obj.status),
-      bytesOut: safeInt(obj.bytesout),
-      bytesIn: safeInt(obj.bytesin),
-      userAgent: safeStr(obj.useragent),
-      rawLine: line,
-    });
+      const o = JSON.parse(line);
+      if (o.recipient || o.subject || o.sender) email++;
+      else if (o.process_name || o.process || o.file_path || o.endpoint || o.severity_score) endpoint++;
+      else if (o.signin_id || o.app_display_name || o.country || (o.principal && o.location)) cloud++;
+      else proxy++;
+    } catch { /* ignore */ }
   }
-  return events;
+  const counts: [SourceType, number][] = [
+    ["email", email], ["endpoint", endpoint], ["cloud", cloud], ["proxy", proxy],
+  ];
+  counts.sort((a, b) => b[1] - a[1]);
+  return counts[0][1] > 0 ? counts[0][0] : "proxy";
 }
+
+export function parseLogText(text: string, sourceType: SourceType): ParsedEvent[] {
+  switch (sourceType) {
+    case "email":    return parseEmailLog(text);
+    case "endpoint": return parseEndpointLog(text);
+    case "cloud":    return parseCloudLog(text);
+    case "proxy":
+    default:         return parseProxyLog(text);
+  }
+}
+
+export type { ParsedEvent, SourceType } from "./events.js";

@@ -45,7 +45,7 @@ export const config = {
 
   jwtSecret: required("JWT_SECRET", "dev-only-secret-do-not-use-in-prod"),
   seedAdmin: {
-    email: process.env.SEED_ADMIN_EMAIL ?? "admin@loginsight.local",
+    email: process.env.SEED_ADMIN_EMAIL ?? "admin@traceiq.local",
     password: process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!",
   },
 

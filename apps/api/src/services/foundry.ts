@@ -1,101 +1,115 @@
 /**
- * Azure AI Foundry client — anomaly explanations.
+ * Azure AI Foundry — anomaly explanations + chain narratives.
  *
  * Author: Matthew Faber
  *
  * --------- Why Azure AI Foundry (vs raw Azure OpenAI)? ---------
  * Azure AI Foundry is Microsoft's unified model platform. A Foundry project
- * gives you:
- *   - A single endpoint that fronts many model families (OpenAI, Phi, Llama,
- *     Mistral) — switching models becomes a config change, not a code change.
- *   - Per-project quota, content safety, evaluation, and observability.
- *   - The same SDKs (`@azure-rest/ai-inference`) talk to ANY Foundry-deployed
- *     model. We deploy `gpt-4o-mini` for this app because it's fast and cheap
- *     and we only need short, structured outputs.
+ * gives you one endpoint that fronts many model families (OpenAI, Phi,
+ * Llama, Mistral) — switching models becomes a config change, not a code
+ * change. We deploy `gpt-4o-mini` inside the Foundry project because it's
+ * fast, cheap, and the outputs we need (analyst narratives) are short.
  *
- * --------- Where do we use AI in loginsight? ---------
- *   - Anomaly explanation enrichment (this file). The deterministic detector
- *     (services/anomaly.ts) flags entries and writes a structured `reason`.
- *     For the top-N (default 5) most suspicious anomalies we ask the model
- *     to write a 2-3 sentence analyst-facing narrative: what likely
- *     happened, what to check next, and how severe it is.
- *   - Nothing else. Parsing, detection, scoring are all deterministic.
+ * --------- Where do we use AI in TraceIQ? ---------
+ *   1. Single-anomaly explanation (top-5 by confidence per upload) — short
+ *      2-3 sentence analyst note next to each flagged event.
+ *   2. Cross-upload chain narrative — for each correlated attack chain the
+ *      model writes a 4-5 sentence "what happened, what to do" story. This
+ *      is what turns a tabular timeline into something a tier-1 analyst can
+ *      paste into a ticket.
  *
  * --------- Failure mode ---------
- * If Foundry isn't configured or returns an error, we silently skip the
- * enrichment step — the structured anomalies are still returned to the UI.
- * The app NEVER blocks on the LLM call.
+ * If Foundry isn't configured or errors, we silently return null. Anomalies
+ * and chains are still returned with their deterministic data — the AI
+ * narrative is purely additive.
  */
 import ModelClient, { isUnexpected } from "@azure-rest/ai-inference";
 import { AzureKeyCredential } from "@azure/core-auth";
 import { config, isFoundryConfigured } from "../config.js";
 import type { Anomaly } from "./anomaly.js";
+import type { Chain } from "./correlation.js";
 
-const SYSTEM_PROMPT = `You are a SOC analyst assistant. Given a structured anomaly detected in a web proxy log, write a 2-3 sentence narrative for a tier-1 analyst.
-Cover: (1) what the activity looks like, (2) what threat it could indicate, (3) one concrete next step. Be concise, factual, and avoid jargon the analyst already knows.`;
+const ANOMALY_SYSTEM = `You are a SOC analyst assistant. Given a structured anomaly detected in a log, write a 2-3 sentence narrative for a tier-1 analyst.
+Cover: (1) what the activity looks like, (2) what threat it could indicate, (3) one concrete next step. Be concise and factual.`;
 
-function buildClient() {
-  return ModelClient(
-    config.foundry.endpoint,
-    new AzureKeyCredential(config.foundry.apiKey),
-  );
+const CHAIN_SYSTEM = `You are a senior SOC analyst. Given a CHRONOLOGICAL chain of events that a correlator linked together because they share entities (user, IP, file hash, host) within 24 hours, write a 4-5 sentence incident narrative for the on-call team.
+Cover: (1) the likely attack story in order, (2) which MITRE ATT&CK tactics are involved, (3) the affected user/host, (4) two concrete containment / investigation steps. Use plain language. Do NOT invent facts that aren't in the events.`;
+
+function client() {
+  return ModelClient(config.foundry.endpoint, new AzureKeyCredential(config.foundry.apiKey));
 }
 
 export async function explainAnomaly(a: Anomaly): Promise<string | null> {
   if (!isFoundryConfigured()) return null;
   try {
-    const client = buildClient();
-    const userPayload = {
-      rule: a.rule,
-      severity: a.severity,
-      confidence: a.confidence,
-      reason: a.reason,
-      metadata: a.metadata,
-    };
-    const response = await client.path("/chat/completions").post({
+    const c = client();
+    const r = await c.path("/chat/completions").post({
       body: {
         model: config.foundry.deployment,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: ANOMALY_SYSTEM },
           {
             role: "user",
-            content: `Anomaly:\n${JSON.stringify(userPayload, null, 2)}\n\nWrite the analyst narrative now.`,
+            content: `Anomaly:\n${JSON.stringify(
+              { rule: a.rule, severity: a.severity, confidence: a.confidence, reason: a.reason, mitre: a.mitre, metadata: a.metadata },
+              null, 2,
+            )}\n\nWrite the analyst narrative now.`,
           },
         ],
         temperature: 0.2,
         max_tokens: 220,
       },
     });
-    if (isUnexpected(response)) {
-      console.warn("[foundry] unexpected response", response.status, response.body);
-      return null;
-    }
-    const text = response.body.choices?.[0]?.message?.content;
-    return typeof text === "string" ? text.trim() : null;
+    if (isUnexpected(r)) { console.warn("[foundry] anomaly response unexpected", r.status); return null; }
+    return (r.body.choices?.[0]?.message?.content as string)?.trim() ?? null;
   } catch (err) {
-    console.warn("[foundry] explain failed:", (err as Error).message);
+    console.warn("[foundry] anomaly explain failed:", (err as Error).message);
     return null;
   }
 }
 
-/**
- * Enrich the top-N most suspicious anomalies (by confidence). We deliberately
- * cap the number of LLM calls — a noisy upload could otherwise rack up tokens.
- */
-export async function enrichTopAnomalies(
-  anomalies: Anomaly[],
-  topN = 5,
-): Promise<Map<number, string>> {
+export async function enrichTopAnomalies(anomalies: Anomaly[], topN = 5): Promise<Map<number, string>> {
   const out = new Map<number, string>();
   if (!isFoundryConfigured() || anomalies.length === 0) return out;
   const ranked = anomalies
     .map((a, i) => ({ a, i }))
     .sort((x, y) => y.a.confidence - x.a.confidence)
     .slice(0, topN);
-  // Sequential to keep token-per-second well below quota for the demo tier.
   for (const { a, i } of ranked) {
-    const text = await explainAnomaly(a);
-    if (text) out.set(i, text);
+    const txt = await explainAnomaly(a);
+    if (txt) out.set(i, txt);
   }
   return out;
+}
+
+export async function explainChain(chain: Chain): Promise<string | null> {
+  if (!isFoundryConfigured()) return null;
+  try {
+    const c = client();
+    const payload = {
+      entities: chain.entities,
+      sourceTypes: chain.sourceTypes,
+      mitre: chain.mitre,
+      events: chain.events.map((e) => ({
+        t: e.occurredAt, source: e.sourceType,
+        anomaly: e.isAnomaly, severity: e.severity, summary: e.summary,
+      })),
+    };
+    const r = await c.path("/chat/completions").post({
+      body: {
+        model: config.foundry.deployment,
+        messages: [
+          { role: "system", content: CHAIN_SYSTEM },
+          { role: "user", content: `Attack chain:\n${JSON.stringify(payload, null, 2)}\n\nWrite the incident narrative now.` },
+        ],
+        temperature: 0.2,
+        max_tokens: 400,
+      },
+    });
+    if (isUnexpected(r)) { console.warn("[foundry] chain response unexpected", r.status); return null; }
+    return (r.body.choices?.[0]?.message?.content as string)?.trim() ?? null;
+  } catch (err) {
+    console.warn("[foundry] chain explain failed:", (err as Error).message);
+    return null;
+  }
 }

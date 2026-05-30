@@ -1,8 +1,8 @@
 {
-  "name": "@loginsight/api",
+  "name": "@traceiq/api",
   "version": "0.1.0",
   "private": true,
-  "description": "loginsight REST API — auth, log upload, parsing, anomaly detection",
+  "description": "traceiq REST API — auth, log upload, parsing, anomaly detection",
   "author": "Matthew Faber",
   "type": "module",
   "main": "dist/index.js",

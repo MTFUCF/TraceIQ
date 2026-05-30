@@ -1,7 +1,7 @@
 # Local development services.
 # Author: Matthew Faber
 #
-# This brings up the dependencies needed to run loginsight locally:
+# This brings up the dependencies needed to run traceiq locally:
 #   - PostgreSQL: stores users, uploaded-log metadata, parsed events, anomalies
 #   - Azurite:   local Azure Blob Storage emulator (so uploaded log files
 #                go through the same code path locally as they do in Azure)
@@ -12,12 +12,12 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: loginsight-postgres
+    container_name: traceiq-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: loginsight
-      POSTGRES_PASSWORD: loginsight_dev_password
-      POSTGRES_DB: loginsight
+      POSTGRES_USER: traceiq
+      POSTGRES_PASSWORD: traceiq_dev_password
+      POSTGRES_DB: traceiq
     ports:
       - "5432:5432"
     volumes:
@@ -25,7 +25,7 @@ services:
 
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite:latest
-    container_name: loginsight-azurite
+    container_name: traceiq-azurite
     restart: unless-stopped
     command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 -l /data --skipApiVersionCheck"
     ports:

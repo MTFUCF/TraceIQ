@@ -1,5 +1,5 @@
 // =====================================================================
-// loginsight — core resources (resource-group scope).
+// traceiq — core resources (resource-group scope).
 // Author: Matthew Faber
 // =====================================================================
 // Everything in this module deploys into the resource group created by
@@ -139,7 +139,7 @@ resource pgFwAzure 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2024
 
 resource pgDb 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-01' = {
   parent: pg
-  name: 'loginsight'
+  name: 'traceiq'
   properties: { charset: 'UTF8', collation: 'en_US.utf8' }
 }
 
@@ -164,7 +164,7 @@ resource cae 'Microsoft.App/managedEnvironments@2024-03-01' = {
 // =========================
 // Connection strings
 // =========================
-var dbConn = 'postgresql://${dbAdminLogin}:${dbAdminPassword}@${pg.properties.fullyQualifiedDomainName}:5432/loginsight?sslmode=require'
+var dbConn = 'postgresql://${dbAdminLogin}:${dbAdminPassword}@${pg.properties.fullyQualifiedDomainName}:5432/traceiq?sslmode=require'
 var storageConn = 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
 
 // =========================

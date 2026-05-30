@@ -1,5 +1,5 @@
 // =====================================================================
-// loginsight — main Bicep entrypoint (subscription scope).
+// traceiq — main Bicep entrypoint (subscription scope).
 // Author: Matthew Faber
 // =====================================================================
 // This file is the single source of truth for everything `azd up` creates
@@ -27,7 +27,7 @@
 targetScope = 'subscription'
 
 @description('Short app name; resource names are derived from this.')
-param appName string = 'loginsight'
+param appName string = 'traceiq'
 
 @description('Azure region for all resources.')
 param location string = 'eastus2'
@@ -36,7 +36,7 @@ param location string = 'eastus2'
 param environmentName string = 'dev'
 
 @description('PostgreSQL admin login name.')
-param dbAdminLogin string = 'loginsightadmin'
+param dbAdminLogin string = 'traceiqadmin'
 
 @secure()
 @description('PostgreSQL admin password. Generate a strong random value.')
@@ -47,7 +47,7 @@ param dbAdminPassword string
 param jwtSecret string
 
 @description('Email for the initial seeded admin user.')
-param seedAdminEmail string = 'admin@loginsight.local'
+param seedAdminEmail string = 'admin@traceiq.local'
 
 @secure()
 @description('Initial seeded admin password.')

@@ -1,5 +1,5 @@
 /**
- * Root layout for the loginsight web app.
+ * Root layout for the traceiq web app.
  * Author: Matthew Faber
  *
  * The layout is intentionally minimal — a single header strip plus a
@@ -11,7 +11,7 @@ import Link from "next/link";
 import { SignOutButton } from "@/components/SignOutButton";
 
 export const metadata: Metadata = {
-  title: "loginsight",
+  title: "traceiq",
   description: "SOC log analysis with AI-powered anomaly detection",
 };
 
@@ -22,10 +22,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="border-b border-slate-800 bg-panel/60 backdrop-blur sticky top-0 z-20">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <Link href="/dashboard" className="text-accent font-semibold tracking-tight">
-              loginsight<span className="text-slate-400 font-normal ml-2 text-sm">SOC log analysis</span>
+              traceiq<span className="text-slate-400 font-normal ml-2 text-sm">SOC log analysis</span>
             </Link>
             <nav className="text-sm text-slate-400">
               <Link href="/dashboard" className="hover:text-slate-100 mr-4">Dashboard</Link>
+              <Link href="/correlation" className="hover:text-slate-100 mr-4">Correlation</Link>
               <SignOutButton />
             </nav>
           </div>

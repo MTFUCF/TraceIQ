@@ -24,7 +24,7 @@ export async function api<T = unknown>(
   init: RequestInit = {},
 ): Promise<T> {
   const token =
-    typeof window !== "undefined" ? localStorage.getItem("loginsight_token") : null;
+    typeof window !== "undefined" ? localStorage.getItem("traceiq_token") : null;
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
@@ -38,7 +38,7 @@ export async function api<T = unknown>(
       if (body?.error) msg = body.error;
     } catch { /* non-json body */ }
     if (res.status === 401 && typeof window !== "undefined") {
-      localStorage.removeItem("loginsight_token");
+      localStorage.removeItem("traceiq_token");
     }
     throw new ApiError(res.status, msg);
   }

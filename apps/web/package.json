@@ -1,8 +1,8 @@
 {
-  "name": "@loginsight/web",
+  "name": "@traceiq/web",
   "version": "0.1.0",
   "private": true,
-  "description": "loginsight web UI — log upload + SOC analyst dashboard",
+  "description": "traceiq web UI — log upload + SOC analyst dashboard",
   "author": "Matthew Faber",
   "scripts": {
     "dev": "next dev -p 3000",
