@@ -1,0 +1,58 @@
+# GitHub Actions — build + deploy via azd.
+# Author: Matthew Faber
+#
+# Auth uses OIDC federated credentials (no long-lived secret in GitHub).
+# Required repo secrets:
+#   AZURE_CLIENT_ID
+#   AZURE_TENANT_ID
+#   AZURE_SUBSCRIPTION_ID
+# Required repo variables:
+#   AZURE_ENV_NAME            e.g. loginsight-dev
+#   AZURE_LOCATION            e.g. eastus2
+# Required azd env values (set once with `azd env set ...` and committed
+# to the env state in Azure, or repeated here as repo secrets):
+#   DB_ADMIN_PASSWORD
+#   JWT_SECRET
+#   SEED_ADMIN_PASSWORD
+#   AZURE_AI_FOUNDRY_ENDPOINT
+#   AZURE_AI_FOUNDRY_API_KEY
+#   AZURE_AI_FOUNDRY_DEPLOYMENT
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install azd
+        uses: Azure/setup-azd@v2
+
+      - name: Azure login (OIDC)
+        run: |
+          azd auth login \
+            --client-id "${{ secrets.AZURE_CLIENT_ID }}" \
+            --tenant-id "${{ secrets.AZURE_TENANT_ID }}" \
+            --federated-credential-provider github
+
+      - name: Provision + deploy
+        env:
+          AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          DB_ADMIN_PASSWORD: ${{ secrets.DB_ADMIN_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+          AZURE_AI_FOUNDRY_ENDPOINT: ${{ secrets.AZURE_AI_FOUNDRY_ENDPOINT }}
+          AZURE_AI_FOUNDRY_API_KEY: ${{ secrets.AZURE_AI_FOUNDRY_API_KEY }}
+          AZURE_AI_FOUNDRY_DEPLOYMENT: ${{ secrets.AZURE_AI_FOUNDRY_DEPLOYMENT }}
+        run: azd up --no-prompt

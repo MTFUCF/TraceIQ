@@ -1,0 +1,38 @@
+# Local development services.
+# Author: Matthew Faber
+#
+# This brings up the dependencies needed to run loginsight locally:
+#   - PostgreSQL: stores users, uploaded-log metadata, parsed events, anomalies
+#   - Azurite:   local Azure Blob Storage emulator (so uploaded log files
+#                go through the same code path locally as they do in Azure)
+#
+# In production these are replaced with:
+#   - Azure Database for PostgreSQL Flexible Server (Burstable B1ms)
+#   - Azure Blob Storage (one container: "logs")
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: loginsight-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: loginsight
+      POSTGRES_PASSWORD: loginsight_dev_password
+      POSTGRES_DB: loginsight
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: loginsight-azurite
+    restart: unless-stopped
+    command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 -l /data"
+    ports:
+      - "10000:10000"
+    volumes:
+      - azurite-data:/data
+
+volumes:
+  postgres-data:
+  azurite-data:

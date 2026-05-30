@@ -1,0 +1,34 @@
+# Azure Developer CLI configuration.
+# Author: Matthew Faber
+#
+# `azd` is the one-command path from "source code" to "running in Azure".
+# It reads this file to know:
+#   - which IaC template to use (infra/main.bicep)
+#   - which services exist, where their source lives, and how to ship them
+#     (Docker image -> Azure Container Registry -> Container Apps)
+#
+# Lifecycle:
+#   azd up      provisions infra + builds + deploys both services
+#   azd deploy  rebuilds + deploys without re-provisioning
+#   azd down    deletes the resource group
+name: loginsight
+metadata:
+  template: loginsight@0.1.0
+infra:
+  provider: bicep
+  path: infra
+services:
+  api:
+    project: ./apps/api
+    language: ts
+    host: containerapp
+    docker:
+      path: ../../apps/api/Dockerfile
+      context: ../..
+  web:
+    project: ./apps/web
+    language: ts
+    host: containerapp
+    docker:
+      path: ../../apps/web/Dockerfile
+      context: ../..

@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { background: #0b1020; color: #e2e8f0; }
+body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.btn { @apply px-4 py-2 rounded bg-accent text-bg font-medium hover:opacity-90 transition; }
+.btn-secondary { @apply px-3 py-1.5 rounded border border-slate-600 text-slate-200 hover:bg-slate-800 transition; }
+.panel { @apply bg-panel border border-slate-700 rounded-lg p-4; }
+.input { @apply w-full px-3 py-2 rounded bg-slate-900 border border-slate-700 focus:outline-none focus:border-accent text-slate-100; }
+.badge-high { @apply text-xs px-2 py-0.5 rounded bg-red-900 text-red-200; }
+.badge-medium { @apply text-xs px-2 py-0.5 rounded bg-amber-900 text-amber-200; }
+.badge-low { @apply text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300; }
