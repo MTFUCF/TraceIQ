@@ -175,34 +175,22 @@ export function AttackPathGraph({ events }: { events: ChainEvent[] }) {
 
         {/* Event nodes */}
         {points.map((p, i) => (
-          <g key={i}>
-            <circle
-              cx={p.x}
-              cy={p.y}
-              r={p.r + (p.isAnomaly ? 2 : 0)}
-              fill={p.fill}
-              stroke={p.stroke}
-              strokeWidth={p.isAnomaly ? 2 : 1}
-              opacity={p.isAnomaly ? 1 : 0.55}
-            >
-              <title>
-                {`${new Date(p.t).toLocaleString()}\n[${p.sourceType}] ${p.summary}${
-                  p.mitre ? `\nMITRE: ${p.mitre.techniqueId} ${p.mitre.techniqueName}` : ""
-                }`}
-              </title>
-            </circle>
-            {p.isAnomaly && p.mitre && (
-              <text
-                x={p.x}
-                y={p.y - 13}
-                textAnchor="middle"
-                fontSize="9"
-                fill="#cbd5e1"
-              >
-                {p.mitre.techniqueId}
-              </text>
-            )}
-          </g>
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={p.r + (p.isAnomaly ? 2 : 0)}
+            fill={p.fill}
+            stroke={p.stroke}
+            strokeWidth={p.isAnomaly ? 2 : 1}
+            opacity={p.isAnomaly ? 1 : 0.55}
+          >
+            <title>
+              {`${new Date(p.t).toLocaleString()}\n[${p.sourceType}] ${p.summary}${
+                p.mitre ? `\nMITRE: ${p.mitre.techniqueId} ${p.mitre.techniqueName}` : ""
+              }`}
+            </title>
+          </circle>
         ))}
       </svg>
 

@@ -57,33 +57,45 @@ generator (`samples/generate.js`) creates realistic examples.
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    User[👤 SOC Analyst]
+    User -- HTTPS + JWT --> Web
+
+    subgraph Azure[Azure Subscription · westus3 · rg-traceiq-live]
+        direction LR
+        Web[⚛️ Container App: web<br/>Next.js 15<br/>port 3000]
+        Api[🔧 Container App: api<br/>Express + TS<br/>port 4000]
+        ACR[(📦 Container Registry<br/>Basic SKU)]
+        PG[(🗄 PostgreSQL Flexible<br/>Burstable B1ms)]
+        Blob[(💾 Blob Storage<br/>container: logs)]
+        UAMI[🆔 User-Assigned<br/>Managed Identity]
+        Law[📊 Log Analytics<br/>Workspace]
+        CAE[🌐 Container Apps<br/>Environment]
+    end
+
+    Foundry[☁️ Azure AI Foundry<br/>gpt-4o-mini]
+
+    Web -- fetch / JWT --> Api
+    Api -- pg over TLS --> PG
+    Api -- key + HTTPS --> Blob
+    Api -- key + HTTPS --> Foundry
+    Web -- pull image --> ACR
+    Api -- pull image --> ACR
+    UAMI -- AcrPull --> ACR
+    Web -. stdout/stderr .-> Law
+    Api -. stdout/stderr .-> Law
+    CAE --- Web
+    CAE --- Api
 ```
-                  ┌────────────────────────────────────────────┐
-                  │              browser (you)                 │
-                  └────────────────────────────────────────────┘
-                                │ HTTPS + JWT
-                                ▼
-        ┌─────────────────────────────────────────────────────────┐
-        │   Container App: web   (Next.js 15, port 3000)          │
-        │   - login / dashboard / analysis / correlation pages    │
-        │   - Recharts visualisations, MITRE badges               │
-        └──────────────────┬──────────────────────────────────────┘
-                           │ fetch
-                           ▼
-        ┌─────────────────────────────────────────────────────────┐
-        │   Container App: api   (Express + TS, port 4000)        │
-        │   - /auth/login                                         │
-        │   - /uploads (dispatches to 4 parsers + 4 detectors)    │
-        │   - /correlate (cross-upload attack-chain builder)      │
-        └─┬──────────────┬──────────────┬──────────────┬──────────┘
-          │              │              │              │
-          ▼              ▼              ▼              ▼
-   ┌─────────────┐ ┌───────────┐ ┌──────────────┐ ┌──────────────┐
-   │ PostgreSQL  │ │ Blob (logs│ │ Azure AI     │ │ Key Vault    │
-   │ Flexible    │ │ container)│ │ Foundry      │ │ (secrets via │
-   │ Server B1ms │ │           │ │ gpt-4o-mini  │ │ Managed Id.) │
-   └─────────────┘ └───────────┘ └──────────────┘ └──────────────┘
-```
+
+The two services are independent Docker images deployed to the same Azure
+Container Apps environment. They share an Azure Container Registry and a
+user-assigned managed identity (used for `AcrPull` and Key Vault reads).
+
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full sequence diagrams
+(single-upload flow, correlation flow), data model ERD, and per-component
+SKU + cost breakdown.
 
 ## Repository layout
 
