@@ -12,6 +12,7 @@ import {
 import { api } from "@/lib/api";
 import { AuthGate } from "@/components/AuthGate";
 import { MitreBadge } from "@/components/MitreBadge";
+import { ChatPanel } from "@/components/ChatPanel";
 
 type MitreMapping = { tacticId: string; tacticName: string; techniqueId: string; techniqueName: string };
 type Summary = {
@@ -256,6 +257,18 @@ function Inner() {
           </p>
         )}
       </section>
+
+      <ChatPanel
+        endpoint={`/uploads/${id}/chat`}
+        title="💬 Ask about this upload"
+        intro={`Ask anything about ${summary.upload.filename}. The assistant is grounded on this file's events, anomalies, and MITRE mappings.`}
+        suggested={[
+          "Summarize the top risks in this upload",
+          "Which user has the most anomalous activity?",
+          "Walk me through the highest-severity anomaly",
+          "What investigation steps do you recommend?",
+        ]}
+      />
     </div>
   );
 }

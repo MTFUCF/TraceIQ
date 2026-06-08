@@ -82,6 +82,37 @@ export async function enrichTopAnomalies(anomalies: Anomaly[], topN = 5): Promis
   return out;
 }
 
+export type ChatRole = "system" | "user" | "assistant";
+export interface ChatMessage { role: ChatRole; content: string; }
+
+/**
+ * Generic chat-completion call used by the per-upload and per-correlation
+ * chatbots. Returns null if Foundry isn't configured or the call fails, so
+ * callers can degrade gracefully (we surface a friendly message in the UI).
+ */
+export async function chatComplete(
+  messages: ChatMessage[],
+  opts: { maxTokens?: number; temperature?: number } = {},
+): Promise<string | null> {
+  if (!isFoundryConfigured()) return null;
+  try {
+    const c = client();
+    const r = await c.path("/chat/completions").post({
+      body: {
+        model: config.foundry.deployment,
+        messages,
+        temperature: opts.temperature ?? 0.2,
+        max_tokens: opts.maxTokens ?? 600,
+      },
+    });
+    if (isUnexpected(r)) { console.warn("[foundry] chat response unexpected", r.status); return null; }
+    return (r.body.choices?.[0]?.message?.content as string)?.trim() ?? null;
+  } catch (err) {
+    console.warn("[foundry] chat failed:", (err as Error).message);
+    return null;
+  }
+}
+
 export async function explainChain(chain: Chain): Promise<string | null> {
   if (!isFoundryConfigured()) return null;
   try {

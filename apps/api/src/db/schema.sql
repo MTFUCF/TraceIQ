@@ -77,6 +77,24 @@ CREATE TABLE IF NOT EXISTS anomalies (
 
 CREATE INDEX IF NOT EXISTS idx_anomalies_upload ON anomalies(upload_id);
 
+-- Chat history for the per-upload and per-correlation assistants.
+--   scope_type = 'upload'        -> scope_id is the uploads.id (UUID as text)
+--   scope_type = 'correlation'   -> scope_id is the owning users.id (UUID as text)
+-- We keep scope_id as TEXT so a single table covers both scopes without a
+-- nullable FK pair. Ownership is always enforced via user_id at the API layer.
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id           BIGSERIAL PRIMARY KEY,
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    scope_type   TEXT NOT NULL CHECK (scope_type IN ('upload', 'correlation')),
+    scope_id     TEXT NOT NULL,
+    role         TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content      TEXT NOT NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_scope
+    ON chat_messages(user_id, scope_type, scope_id, created_at);
+
 -- Backward-compatible column adds for repos with the older schema.
 DO $$
 BEGIN

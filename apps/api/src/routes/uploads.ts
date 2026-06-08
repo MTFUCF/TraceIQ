@@ -23,7 +23,7 @@ import { parseLogText, detectLogType, SUPPORTED_LOG_TYPES } from "../services/pa
 import type { SourceType } from "../services/events.js";
 import { detectAnomalies } from "../services/anomaly.js";
 import { enrichTopAnomalies } from "../services/foundry.js";
-
+import { listMessages, handleChatTurn, clearMessages } from "../services/chat.js";
 export const uploadsRouter = Router();
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
@@ -236,5 +236,39 @@ uploadsRouter.delete("/:id", requireAuth, async (req: AuthedRequest, res) => {
   const own = await query("SELECT 1 FROM uploads WHERE id=$1 AND user_id=$2", [req.params.id, req.user!.id]);
   if (own.rowCount === 0) return res.status(404).json({ error: "not found" });
   await query("DELETE FROM uploads WHERE id=$1", [req.params.id]);
+  res.status(204).end();
+});
+
+
+// ---------------------------------------------------------------------------
+// Per-upload chat assistant — grounded on this upload's events, anomalies,
+// and summary stats. Each user/assistant turn is persisted to chat_messages
+// so the conversation survives page reloads.
+// ---------------------------------------------------------------------------
+
+uploadsRouter.get("/:id/chat", requireAuth, async (req: AuthedRequest, res) => {
+  const own = await query("SELECT 1 FROM uploads WHERE id=$1 AND user_id=$2", [req.params.id, req.user!.id]);
+  if (own.rowCount === 0) return res.status(404).json({ error: "not found" });
+  const messages = await listMessages(req.user!.id, "upload", req.params.id);
+  res.json({ messages });
+});
+
+uploadsRouter.post("/:id/chat", requireAuth, async (req: AuthedRequest, res) => {
+  const own = await query("SELECT 1 FROM uploads WHERE id=$1 AND user_id=$2", [req.params.id, req.user!.id]);
+  if (own.rowCount === 0) return res.status(404).json({ error: "not found" });
+  const message = typeof req.body?.message === "string" ? req.body.message : "";
+  if (!message.trim()) return res.status(400).json({ error: "message is required" });
+  try {
+    const out = await handleChatTurn(req.user!.id, "upload", req.params.id, message);
+    res.json(out);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+uploadsRouter.delete("/:id/chat", requireAuth, async (req: AuthedRequest, res) => {
+  const own = await query("SELECT 1 FROM uploads WHERE id=$1 AND user_id=$2", [req.params.id, req.user!.id]);
+  if (own.rowCount === 0) return res.status(404).json({ error: "not found" });
+  await clearMessages(req.user!.id, "upload", req.params.id);
   res.status(204).end();
 });

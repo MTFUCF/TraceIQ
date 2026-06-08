@@ -130,7 +130,11 @@ function eventSummary(e: PooledEvent): string {
   }
 }
 
-export async function correlate(userId: string, uploadIds?: string[]): Promise<Chain[]> {
+export async function correlate(
+  userId: string,
+  uploadIds?: string[],
+  opts: { skipAi?: boolean } = {},
+): Promise<Chain[]> {
   // Fetch the set of uploads we'll consider. Only "done" uploads are useful
   // — anything else has no anomalies / events ready.
   const uploadsRes = uploadIds && uploadIds.length > 0
@@ -272,8 +276,10 @@ export async function correlate(userId: string, uploadIds?: string[]): Promise<C
   });
 
   // LLM enrichment (best-effort; never blocks).
-  for (const ch of finalChains) {
-    ch.aiNarrative = await explainChain(ch);
+  if (!opts.skipAi) {
+    for (const ch of finalChains) {
+      ch.aiNarrative = await explainChain(ch);
+    }
   }
 
   return finalChains;

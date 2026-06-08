@@ -23,6 +23,7 @@ import { api, ApiError } from "@/lib/api";
 import { AuthGate } from "@/components/AuthGate";
 import { MitreBadge } from "@/components/MitreBadge";
 import { AttackPathGraph } from "@/components/AttackPathGraph";
+import { ChatPanel } from "@/components/ChatPanel";
 
 type Mitre = { tacticId: string; tacticName: string; techniqueId: string; techniqueName: string };
 type ChainEvent = {
@@ -285,6 +286,18 @@ function Inner() {
           </div>
         </article>
       ))}
+
+      <ChatPanel
+        endpoint="/correlate/chat"
+        title="💬 Ask about your correlated incidents"
+        intro="Ask anything about the chains above — the assistant is grounded on your latest correlation run and reasons across all your log types."
+        suggested={[
+          "Which chain should I triage first and why?",
+          "Summarize the attack story in one paragraph",
+          "Which MITRE ATT&CK techniques span multiple chains?",
+          "What containment actions do you recommend?",
+        ]}
+      />
     </div>
   );
 }
